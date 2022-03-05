@@ -5,10 +5,11 @@ FROM golang:1.17.8-buster AS build
 
 WORKDIR /app
 
-COPY go.mod ./
-RUN go mod download
+COPY src/go.mod ./
+COPY src/go.sum ./
+RUN /go mod download
 
-COPY *.go ./
+COPY src/*.go ./
 
 RUN go build -o /server
 
