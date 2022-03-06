@@ -1,4 +1,4 @@
-package file_fetcher
+package filefetcher
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 // Mocked http.Client as struct implementing FileFetcher interface
 type MockedHttpClient struct{}
 
-func (c *MockedHttpClient) Get(url string) (*http.Response, error) {
+func (c MockedHttpClient) Get(url string) (*http.Response, error) {
 	return &http.Response{
 		Status:     "SOME STATUS",
 		StatusCode: 200,
@@ -29,10 +29,12 @@ func (b MockedHttpResponseBody) Close() error {
 
 func TestFetchFile(t *testing.T) {
 	client := MockedHttpClient{}
-	filesFetcher := NewAsyncFileFetcher(&client)
-	files, err := filesFetcher.FetchFiles([]string{})
+	filesFetcher := NewHttpFileFetcher(
+		client,
+	)
+	files, err := filesFetcher.FetchFile("url")
 
-	if err != nil || files == nil {
+	if err != nil {
 		t.Fatalf(`FetchFiles([]string{}) = %q, %v, want []string{""}, nil`, files, err)
 	}
 

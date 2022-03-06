@@ -5,6 +5,7 @@ import (
 
 	"github.com/MichalMitros/feed-parser/controllers/contracts"
 	"github.com/MichalMitros/feed-parser/feedparser"
+	"github.com/MichalMitros/feed-parser/filefetcher"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -12,7 +13,10 @@ import (
 var feedParser *feedparser.FeedParser
 
 func init() {
-	feedParser = feedparser.NewFeedParser()
+	fetcher := filefetcher.NewHttpFileFetcher(
+		http.DefaultClient,
+	)
+	feedParser = feedparser.NewFeedParser(fetcher)
 	feedParser.Run()
 }
 
@@ -28,11 +32,13 @@ func PostParseFeed(c *gin.Context) {
 		return
 	}
 
-	feedUrls := feedParser.GetFeedUrlsChannel()
+	// feedUrls := feedParser.GetFeedUrlsChannel()
 
-	for _, url := range request.FeedUrls {
-		feedUrls <- url
-	}
+	// for _, url := range request.FeedUrls {
+	// 	feedUrls <- url
+	// }
+
+	feedParser.ParseFeeds(request.FeedUrls)
 
 	c.IndentedJSON(http.StatusAccepted, gin.H{
 		"status": "ACCEPTED",

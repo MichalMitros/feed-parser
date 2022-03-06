@@ -1,4 +1,4 @@
-package file_fetcher
+package filefetcher
 
 import "net/http"
 
