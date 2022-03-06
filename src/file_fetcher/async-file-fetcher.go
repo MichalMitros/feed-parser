@@ -8,10 +8,10 @@ type AsyncFileFetcher struct {
 
 // Creates new AsyncFileFetcher instance
 func NewAsyncFileFetcher(
-	httpClient *HttpClientInterface,
+	httpClient HttpClientInterface,
 ) *AsyncFileFetcher {
 	return &AsyncFileFetcher{
-		httpClient: httpClient,
+		httpClient: &httpClient,
 	}
 }
 
