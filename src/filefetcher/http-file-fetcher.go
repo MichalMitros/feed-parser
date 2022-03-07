@@ -1,6 +1,7 @@
 package filefetcher
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -21,20 +22,23 @@ func NewHttpFileFetcher(
 
 func (f *HttpFileFetcher) FetchFile(
 	url string,
-) (string, error) {
+) ([]byte, error) {
 
+	fmt.Println("Fetching...")
 	resp, err := f.httpClient.Get(url)
-
+	fmt.Println("Fetched")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
+	fmt.Println("Reading Body...")
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
+	fmt.Println("Body reading complete...")
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(body), nil
+	return body, nil
 }

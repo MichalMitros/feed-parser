@@ -32,13 +32,13 @@ func PostParseFeed(c *gin.Context) {
 		return
 	}
 
-	// feedUrls := feedParser.GetFeedUrlsChannel()
+	feedUrls := feedParser.GetFeedUrlsChannel()
 
-	// for _, url := range request.FeedUrls {
-	// 	feedUrls <- url
-	// }
+	for _, url := range request.FeedUrls {
+		feedUrls <- url
+	}
 
-	feedParser.ParseFeeds(request.FeedUrls)
+	// feedParser.ParseFeeds(request.FeedUrls)
 
 	c.IndentedJSON(http.StatusAccepted, gin.H{
 		"status": "ACCEPTED",

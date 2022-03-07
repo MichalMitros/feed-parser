@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/MichalMitros/feed-parser/filefetcher"
+	"github.com/MichalMitros/feed-parser/xmlparser"
 	"go.uber.org/zap"
 )
 
@@ -13,6 +14,7 @@ type FeedParser struct {
 	fetcher  filefetcher.FileFetcher
 }
 
+// Creates new FeedParser instance
 func NewFeedParser(
 	fetcher filefetcher.FileFetcher,
 ) *FeedParser {
@@ -23,6 +25,7 @@ func NewFeedParser(
 	}
 }
 
+// Runs routine listening for files to fetch
 func (p *FeedParser) Run() {
 	go func() {
 		for {
@@ -63,7 +66,10 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 		return err
 	}
 
-	fmt.Println(feedFile)
+	xmlParser := xmlparser.XmlParser{}
+	shop := xmlParser.ParseFeedXml(feedFile)
+
+	fmt.Println(len(shop.ShopItems))
 
 	return nil
 }
