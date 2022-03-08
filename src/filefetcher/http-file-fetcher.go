@@ -23,20 +23,22 @@ func NewHttpFileFetcher(
 
 func (f *HttpFileFetcher) FetchFile(
 	url string,
-) ([]byte, error) {
+) ([]byte, string, error) {
 
 	resp, err := f.httpClient.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	zap.L().Debug("Feed file HTTP headers", zap.Any("responseHeaders", resp.Header))
+
+	lastModified := resp.Header.Get("Last-Modified-")
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return body, nil
+	return body, lastModified, nil
 }

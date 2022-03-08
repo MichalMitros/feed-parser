@@ -66,7 +66,7 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 
 	// Fetch feed file from url
 	zap.L().Info("Fetching feed file", zap.String("feedUrl", feedUrl))
-	feedFile, err := p.fetcher.FetchFile(feedUrl)
+	feedFile, lastModified, err := p.fetcher.FetchFile(feedUrl)
 	if err != nil {
 		zap.L().Error(
 			"Error while fetching feed file",
@@ -74,6 +74,9 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 			zap.Error(err),
 		)
 		return err
+	}
+	if len(lastModified) == 0 {
+		zap.L().Warn(`Feed file has no "Last-Modified" header`, zap.String("feedUrl", feedUrl))
 	}
 	zap.L().Info("Feed file fetched", zap.String("feedUrl", feedUrl))
 
