@@ -6,6 +6,7 @@ import (
 	"github.com/MichalMitros/feed-parser/controllers/contracts"
 	"github.com/MichalMitros/feed-parser/feedparser"
 	"github.com/MichalMitros/feed-parser/filefetcher"
+	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -16,7 +17,8 @@ func init() {
 	fetcher := filefetcher.NewHttpFileFetcher(
 		http.DefaultClient,
 	)
-	feedParser = feedparser.NewFeedParser(fetcher)
+	fileParser := xmlparser.XmlFeedParser{}
+	feedParser = feedparser.NewFeedParser(fetcher, fileParser)
 	feedParser.Run()
 }
 

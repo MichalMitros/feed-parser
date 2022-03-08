@@ -5,23 +5,26 @@ import (
 	"sync"
 
 	"github.com/MichalMitros/feed-parser/filefetcher"
-	"github.com/MichalMitros/feed-parser/xmlparser"
+	"github.com/MichalMitros/feed-parser/fileparser"
 	"go.uber.org/zap"
 )
 
 type FeedParser struct {
-	feedUrls chan string
-	fetcher  filefetcher.FileFetcher
+	feedUrls   chan string
+	fetcher    filefetcher.FileFetcherInterface
+	fileParser fileparser.FeedFileParserInterface
 }
 
 // Creates new FeedParser instance
 func NewFeedParser(
-	fetcher filefetcher.FileFetcher,
+	fetcher filefetcher.FileFetcherInterface,
+	fileParser fileparser.FeedFileParserInterface,
 ) *FeedParser {
 	feedUrls := make(chan string)
 	return &FeedParser{
-		feedUrls: feedUrls,
-		fetcher:  fetcher,
+		feedUrls:   feedUrls,
+		fetcher:    fetcher,
+		fileParser: fileParser,
 	}
 }
 
@@ -54,9 +57,16 @@ func (p FeedParser) GetFeedUrlsChannel() chan string {
 }
 
 func (p *FeedParser) ParseFeed(feedUrl string) error {
+	defer zap.L().Sync()
 
+	zap.L().Info(
+		fmt.Sprintf("Started parsing feed from %s", feedUrl),
+		zap.String("feedUrl", feedUrl),
+	)
+
+	// Fetch feed file from url
+	zap.L().Info("Fetching feed file", zap.String("feedUrl", feedUrl))
 	feedFile, err := p.fetcher.FetchFile(feedUrl)
-
 	if err != nil {
 		zap.L().Error(
 			"Error while fetching feed file",
@@ -65,9 +75,21 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 		)
 		return err
 	}
+	zap.L().Info("Feed file fetched", zap.String("feedUrl", feedUrl))
 
-	xmlParser := xmlparser.XmlParser{}
-	shop := xmlParser.ParseFeedXml(feedFile)
+	// Parse xml to object
+	shop, err := p.fileParser.ParseFile(feedFile)
+	if err != nil {
+		zap.L().Error(
+			"Error while parsing xml file",
+			zap.String("feedUrl", feedUrl),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	// Clear unused file to save memory
+	feedFile = nil
 
 	fmt.Println(len(shop.ShopItems))
 

@@ -15,7 +15,8 @@ func main() {
 	r := gin.New()
 
 	// Set logger
-	logger, _ := zap.NewProduction()
+	logger, _ := zap.NewDevelopment()
+	zap.ReplaceGlobals(logger)
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 	r.Use(ginzap.RecoveryWithZap(logger, true))
 

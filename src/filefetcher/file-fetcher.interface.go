@@ -1,6 +1,6 @@
 package filefetcher
 
 // Interface of file fetcher
-type FileFetcher interface {
+type FileFetcherInterface interface {
 	FetchFile(url string) ([]byte, error)
 }
