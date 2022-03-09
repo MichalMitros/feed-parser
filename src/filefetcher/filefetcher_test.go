@@ -32,7 +32,7 @@ func TestFetchFile(t *testing.T) {
 	filesFetcher := NewHttpFileFetcher(
 		client,
 	)
-	files, err := filesFetcher.FetchFile("url")
+	files, _, err := filesFetcher.FetchFile("url")
 
 	if err != nil {
 		t.Fatalf(`FetchFiles([]string{}) = %q, %v, want []string{""}, nil`, files, err)

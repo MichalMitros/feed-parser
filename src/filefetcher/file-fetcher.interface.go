@@ -1,6 +1,8 @@
 package filefetcher
 
+import "io"
+
 // Interface of file fetcher
 type FileFetcherInterface interface {
-	FetchFile(url string) ([]byte, string, error)
+	FetchFile(url string) (io.ReadCloser, string, error)
 }

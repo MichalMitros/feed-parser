@@ -1,6 +1,7 @@
 package feedparser
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -81,20 +82,36 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 	zap.L().Info("Feed file fetched", zap.String("feedUrl", feedUrl))
 
 	// Parse xml to object
-	shop, err := p.fileParser.ParseFile(feedFile)
-	if err != nil {
-		zap.L().Error(
-			"Error while parsing xml file",
-			zap.String("feedUrl", feedUrl),
-			zap.Error(err),
-		)
-		return err
-	}
+	go p.fileParser.ParseFile(feedFile)
+	// if err != nil {
+	// 	zap.L().Error(
+	// 		"Error while parsing xml file",
+	// 		zap.String("feedUrl", feedUrl),
+	// 		zap.Error(err),
+	// 	)
+	// 	return err
+	// }
 
 	// Clear unused file to save memory
-	feedFile = nil
+	// feedFile = nil
 
-	fmt.Println(len(shop.ShopItems))
+	c := p.fileParser.GetOutputChannel()
+
+	i := <-c
+	i_json, err := json.Marshal(i)
+	fmt.Println(string(i_json))
+	i = <-c
+	i_json, err = json.Marshal(i)
+	fmt.Println(string(i_json))
+	i = <-c
+	i_json, err = json.Marshal(i)
+	fmt.Println(string(i_json))
+	i = <-c
+	i_json, err = json.Marshal(i)
+	fmt.Println(string(i_json))
+	i = <-c
+	i_json, err = json.Marshal(i)
+	fmt.Println(string(i_json))
 
 	return nil
 }
