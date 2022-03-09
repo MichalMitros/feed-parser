@@ -7,23 +7,13 @@ import (
 	"github.com/MichalMitros/feed-parser/models"
 )
 
-type XmlFeedParser struct {
-	output chan models.ShopItem
+type XmlFeedParser struct{}
+
+func NewXmlFeedParser() *XmlFeedParser {
+	return &XmlFeedParser{}
 }
 
-func NewXmlFeedParser(
-	output chan models.ShopItem,
-) *XmlFeedParser {
-	return &XmlFeedParser{
-		output: output,
-	}
-}
-
-func (p *XmlFeedParser) GetOutputChannel() chan models.ShopItem {
-	return p.output
-}
-
-func (p *XmlFeedParser) ParseFile(feedXmlFile io.ReadCloser) {
+func (p *XmlFeedParser) ParseFile(feedXmlFile io.ReadCloser, shopItemsOutput chan models.ShopItem) {
 	decoder := xml.NewDecoder(feedXmlFile)
 
 	for {
@@ -37,8 +27,10 @@ func (p *XmlFeedParser) ParseFile(feedXmlFile io.ReadCloser) {
 			if se.Name.Local == "SHOPITEM" {
 				var item models.ShopItem
 				decoder.DecodeElement(&item, &se)
-				p.output <- item
+				shopItemsOutput <- item
 			}
 		}
 	}
+
+	close(shopItemsOutput)
 }

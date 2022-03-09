@@ -7,6 +7,5 @@ import (
 )
 
 type FeedFileParserInterface interface {
-	ParseFile(io.ReadCloser)
-	GetOutputChannel() chan models.ShopItem
+	ParseFile(feedFile io.ReadCloser, shopItemsOutput chan models.ShopItem)
 }

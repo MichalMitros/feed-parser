@@ -7,7 +7,6 @@ import (
 	"github.com/MichalMitros/feed-parser/feedparser"
 	"github.com/MichalMitros/feed-parser/filefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
-	"github.com/MichalMitros/feed-parser/models"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -18,8 +17,7 @@ func init() {
 	fetcher := filefetcher.NewHttpFileFetcher(
 		http.DefaultClient,
 	)
-	parsedItems := make(chan models.ShopItem)
-	fileParser := xmlparser.NewXmlFeedParser(parsedItems)
+	fileParser := xmlparser.NewXmlFeedParser()
 	feedParser = feedparser.NewFeedParser(fetcher, fileParser)
 	feedParser.Run()
 }

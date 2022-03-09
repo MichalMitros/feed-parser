@@ -1,12 +1,12 @@
 package feedparser
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 
 	"github.com/MichalMitros/feed-parser/filefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser"
+	"github.com/MichalMitros/feed-parser/models"
 	"go.uber.org/zap"
 )
 
@@ -82,36 +82,32 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 	zap.L().Info("Feed file fetched", zap.String("feedUrl", feedUrl))
 
 	// Parse xml to object
-	go p.fileParser.ParseFile(feedFile)
-	// if err != nil {
-	// 	zap.L().Error(
-	// 		"Error while parsing xml file",
-	// 		zap.String("feedUrl", feedUrl),
-	// 		zap.Error(err),
-	// 	)
-	// 	return err
-	// }
+	parsedShopItems := make(chan models.ShopItem)
+	go p.fileParser.ParseFile(feedFile, parsedShopItems)
 
-	// Clear unused file to save memory
-	// feedFile = nil
+	allItems := make(chan models.ShopItem, 100)
+	biddingItems := make(chan models.ShopItem, 100)
 
-	c := p.fileParser.GetOutputChannel()
-
-	i := <-c
-	i_json, err := json.Marshal(i)
-	fmt.Println(string(i_json))
-	i = <-c
-	i_json, err = json.Marshal(i)
-	fmt.Println(string(i_json))
-	i = <-c
-	i_json, err = json.Marshal(i)
-	fmt.Println(string(i_json))
-	i = <-c
-	i_json, err = json.Marshal(i)
-	fmt.Println(string(i_json))
-	i = <-c
-	i_json, err = json.Marshal(i)
-	fmt.Println(string(i_json))
+	go filterItems(
+		parsedShopItems,
+		allItems,
+		biddingItems,
+	)
 
 	return nil
+}
+
+func filterItems(
+	input chan models.ShopItem,
+	allItemsOutput chan models.ShopItem,
+	biddingItemsOutput chan models.ShopItem,
+) {
+	for item := range input {
+		if len(item.HeurekaCPC) > 0 {
+			biddingItemsOutput <- item
+		}
+		allItemsOutput <- item
+	}
+	close(allItemsOutput)
+	close(biddingItemsOutput)
 }
