@@ -1,23 +1,31 @@
-package filefetcher
+package httpfilefetcher
 
 import (
 	"io"
+	"net/http"
 
 	"go.uber.org/zap"
 )
 
-// File fetcher for fetching file from http asynchronously
+// Fetcher for getting files from http urls
 // Implements FileFetcher interface
 type HttpFileFetcher struct {
 	httpClient HttpClientInterface
 }
 
-// Creates new AsyncFileFetcher instance
+// Creates new FileFetcher instance
 func NewHttpFileFetcher(
 	httpClient HttpClientInterface,
 ) *HttpFileFetcher {
 	return &HttpFileFetcher{
 		httpClient: httpClient,
+	}
+}
+
+// Creates new FileFetcher instance with default httpClient
+func DefaultHttpFileFetcher() *HttpFileFetcher {
+	return &HttpFileFetcher{
+		httpClient: http.DefaultClient,
 	}
 }
 

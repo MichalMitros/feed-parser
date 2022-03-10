@@ -7,10 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type RabbitWriterItnerface interface {
-	WriteToQueue(queueName string, shopItems chan models.ShopItem) error
-}
-
+// Writer for RabbitMQ queues
 type RabbitWriter struct {
 	username   string
 	password   string
@@ -18,35 +15,51 @@ type RabbitWriter struct {
 	connection *amqp.Connection
 }
 
+// Connection options for RabibitMQ writer
+type RabbitWriterOptions struct {
+	Username string
+	Password string
+	Hostname string
+}
+
+// Creates new RabbitWriter instance
 func NewRabbitWriter(
-	username string,
-	password string,
-	hostname string,
+	options RabbitWriterOptions,
 ) (*RabbitWriter, error) {
-	connString := "amqp://" + username + ":" + password + "@" + hostname + "/"
+	// Create connection
+	connString :=
+		"amqp://" +
+			options.Username + ":" +
+			options.Password + "@" +
+			options.Hostname + "/"
 	conn, err := amqp.Dial(connString)
 	if err != nil {
 		return nil, err
 	}
 
 	return &RabbitWriter{
-		username:   username,
-		password:   password,
-		hostname:   hostname,
+		username:   options.Username,
+		password:   options.Password,
+		hostname:   options.Hostname,
 		connection: conn,
 	}, nil
 }
 
+// Creates new connection channel and starts
+// new goroutine listening for products in shopItemsInput
+// and then sending them to queue queueName
 func (r RabbitWriter) WriteToQueue(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
 ) error {
 
+	// Get channel from connection
 	ch, err := r.connection.Channel()
 	if err != nil {
 		return err
 	}
 
+	// Declare RabbitMQ queue
 	q, err := ch.QueueDeclare(
 		queueName,
 		false,
@@ -59,6 +72,8 @@ func (r RabbitWriter) WriteToQueue(
 		return err
 	}
 
+	// Start new go routine sending items
+	// from shopItemsInput channel to the queue
 	go r.rabbitWritingRoutine(
 		ch,
 		&q,
@@ -68,7 +83,9 @@ func (r RabbitWriter) WriteToQueue(
 	return nil
 }
 
-func (r RabbitWriter) rabbitWritingRoutine(
+// Writes objects from shopItemsInput
+// to the queue in JSON format
+func (r *RabbitWriter) rabbitWritingRoutine(
 	channel *amqp.Channel,
 	queue *amqp.Queue,
 	shopItemsInput chan models.ShopItem,

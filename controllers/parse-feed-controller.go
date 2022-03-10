@@ -7,28 +7,27 @@ import (
 
 	"github.com/MichalMitros/feed-parser/controllers/contracts"
 	"github.com/MichalMitros/feed-parser/feedparser"
-	"github.com/MichalMitros/feed-parser/filefetcher"
+	"github.com/MichalMitros/feed-parser/filefetcher/httpfilefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
-	"github.com/MichalMitros/feed-parser/rabbitwriter"
+	"github.com/MichalMitros/feed-parser/queuewriter/rabbitwriter"
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
 )
 
+// Feed parser instance
 var feedParser *feedparser.FeedParser
 
+// Initialize feedParser
 func init() {
 
-	fetcher := filefetcher.NewHttpFileFetcher(
-		http.DefaultClient,
-	)
+	fetcher := httpfilefetcher.DefaultHttpFileFetcher()
 
-	queueWriter, err := rabbitwriter.NewRabbitWriter(
-		getEnvVarOrPanic("RABBITMQ_USER"),
-		getEnvVarOrPanic("RABBITMQ_PASSWORD"),
-		getEnvVarOrPanic("RABBITMQ_HOST"),
-	)
-
+	queueWriter, err := rabbitwriter.NewRabbitWriter(rabbitwriter.RabbitWriterOptions{
+		Hostname: getEnvVarOrPanic("RABBITMQ_HOST"),
+		Username: getEnvVarOrPanic("RABBITMQ_USER"),
+		Password: getEnvVarOrPanic("RABBITMQ_PASSWORD"),
+	})
 	if err != nil {
 		zap.L().Error(
 			"Cannot establish connection to RabbitMQ",
@@ -37,13 +36,16 @@ func init() {
 	}
 
 	fileParser := xmlparser.NewXmlFeedParser()
+
+	// Create FeedParser instance for controllers usage
 	feedParser = feedparser.NewFeedParser(fetcher, fileParser, queueWriter)
-	feedParser.Run()
 }
 
 func PostParseFeed(c *gin.Context) {
-	var request contracts.ParseFeedRequest
+	defer zap.L().Sync()
 
+	// Parse request json to object
+	var request contracts.ParseFeedRequest
 	if err := c.BindJSON(&request); err != nil || len(request.FeedUrls) == 0 {
 		zap.L().Warn("POST /parse-feed Bad Request", zap.Error(err))
 		c.IndentedJSON(http.StatusBadRequest, gin.H{
@@ -53,20 +55,19 @@ func PostParseFeed(c *gin.Context) {
 		return
 	}
 
-	feedUrls := feedParser.GetFeedUrlsChannel()
+	// Parse all feeds from request
+	feedParser.ParseFeeds(request.FeedUrls)
 
-	for _, url := range request.FeedUrls {
-		feedUrls <- url
-	}
-
-	// feedParser.ParseFeeds(request.FeedUrls)
-
+	// Send response
 	c.IndentedJSON(http.StatusAccepted, gin.H{
 		"status": "ACCEPTED",
 	})
 }
 
+// Get environment variable or panic when variable is not set
 func getEnvVarOrPanic(key string) string {
+	defer zap.L().Sync()
+
 	envVar, isEnvSet := os.LookupEnv(key)
 	if !isEnvSet {
 		zap.L().Fatal(

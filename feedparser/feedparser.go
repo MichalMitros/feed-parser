@@ -2,63 +2,39 @@ package feedparser
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/MichalMitros/feed-parser/filefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser"
 	"github.com/MichalMitros/feed-parser/models"
-	"github.com/MichalMitros/feed-parser/rabbitwriter"
+	"github.com/MichalMitros/feed-parser/queuewriter"
 	"go.uber.org/zap"
 )
 
 type FeedParser struct {
-	feedUrls    chan string
 	fetcher     filefetcher.FileFetcherInterface
 	fileParser  fileparser.FeedFileParserInterface
-	queueWriter rabbitwriter.RabbitWriterItnerface
+	queueWriter queuewriter.QueueWriterInterface
 }
 
 // Creates new FeedParser instance
 func NewFeedParser(
 	fetcher filefetcher.FileFetcherInterface,
 	fileParser fileparser.FeedFileParserInterface,
-	queueWriter rabbitwriter.RabbitWriterItnerface,
+	queueWriter queuewriter.QueueWriterInterface,
 ) *FeedParser {
-	feedUrls := make(chan string)
 	return &FeedParser{
-		feedUrls:    feedUrls,
 		fetcher:     fetcher,
 		fileParser:  fileParser,
 		queueWriter: queueWriter,
 	}
 }
 
-// Runs routine listening for files to fetch
-func (p *FeedParser) Run() {
-	go func() {
-		for {
-			url := <-p.feedUrls
-			go p.ParseFeed(url)
-		}
-	}()
-}
-
 func (p *FeedParser) ParseFeeds(feedUrls []string) {
-	var wg sync.WaitGroup
-	wg.Add(len(feedUrls))
-
 	for _, url := range feedUrls {
 		go func(url string) {
 			p.ParseFeed(url)
-			wg.Done()
 		}(url)
 	}
-
-	wg.Wait()
-}
-
-func (p FeedParser) GetFeedUrlsChannel() chan string {
-	return p.feedUrls
 }
 
 func (p *FeedParser) ParseFeed(feedUrl string) error {
