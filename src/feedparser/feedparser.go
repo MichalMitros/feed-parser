@@ -7,25 +7,29 @@ import (
 	"github.com/MichalMitros/feed-parser/filefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser"
 	"github.com/MichalMitros/feed-parser/models"
+	"github.com/MichalMitros/feed-parser/rabbitwriter"
 	"go.uber.org/zap"
 )
 
 type FeedParser struct {
-	feedUrls   chan string
-	fetcher    filefetcher.FileFetcherInterface
-	fileParser fileparser.FeedFileParserInterface
+	feedUrls    chan string
+	fetcher     filefetcher.FileFetcherInterface
+	fileParser  fileparser.FeedFileParserInterface
+	queueWriter rabbitwriter.RabbitWriterItnerface
 }
 
 // Creates new FeedParser instance
 func NewFeedParser(
 	fetcher filefetcher.FileFetcherInterface,
 	fileParser fileparser.FeedFileParserInterface,
+	queueWriter rabbitwriter.RabbitWriterItnerface,
 ) *FeedParser {
 	feedUrls := make(chan string)
 	return &FeedParser{
-		feedUrls:   feedUrls,
-		fetcher:    fetcher,
-		fileParser: fileParser,
+		feedUrls:    feedUrls,
+		fetcher:     fetcher,
+		fileParser:  fileParser,
+		queueWriter: queueWriter,
 	}
 }
 
@@ -93,6 +97,9 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 		allItems,
 		biddingItems,
 	)
+
+	p.queueWriter.WriteToQueue("shop_items", allItems)
+	p.queueWriter.WriteToQueue("shop_items_bidding", biddingItems)
 
 	return nil
 }
