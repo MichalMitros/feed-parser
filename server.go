@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"strings"
 	"time"
 
 	"github.com/MichalMitros/feed-parser/controllers"
@@ -15,7 +17,14 @@ func main() {
 	r := gin.New()
 
 	// Set logger
-	logger, _ := zap.NewDevelopment()
+	envMode := os.Getenv("ENV")
+	var logger *zap.Logger
+	if strings.ToLower(envMode) == "production" {
+		logger, _ = zap.NewProduction()
+	} else {
+		logger, _ = zap.NewDevelopment()
+	}
+
 	zap.ReplaceGlobals(logger)
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 	r.Use(ginzap.RecoveryWithZap(logger, true))

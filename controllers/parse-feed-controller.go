@@ -20,6 +20,7 @@ var feedParser *feedparser.FeedParser
 
 // Initialize feedParser
 func init() {
+	defer zap.L().Sync()
 
 	fetcher := httpfilefetcher.DefaultHttpFileFetcher()
 
@@ -29,7 +30,7 @@ func init() {
 		Password: getEnvVarOrPanic("RABBITMQ_PASSWORD"),
 	})
 	if err != nil {
-		zap.L().Error(
+		zap.L().Fatal(
 			"Cannot establish connection to RabbitMQ",
 			zap.Error(err),
 		)
