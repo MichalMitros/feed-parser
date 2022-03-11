@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -19,16 +20,24 @@ func main() {
 	var logger *zap.Logger
 
 	// Set mode of the application (logger and gin server)
-	if strings.ToLower(envMode) == "developmnent" {
+	if strings.ToLower(envMode) == "development" {
 		gin.SetMode(gin.DebugMode)
-		logger, _ = zap.NewProduction()
+		logger, _ = zap.NewDevelopment()
 		logger.Info("Running in DEVELOPMENT mode")
 	} else {
 		gin.SetMode(gin.ReleaseMode)
-		logger, _ = zap.NewDevelopment()
+		logger, _ = zap.NewProduction()
 		logger.Info("Running in PRODUCTION mode")
 	}
 	defer logger.Sync()
+
+	serverAddress, isServerAddrSet := os.LookupEnv("SERVER_ADDRESS")
+	if !isServerAddrSet {
+		logger.Error(
+			"'SERVER_ADDRESS' variable not set, starting on default ':8080'",
+		)
+		serverAddress = ":8080"
+	}
 
 	// Create gin server
 	r := gin.New()
@@ -41,10 +50,12 @@ func main() {
 	// Add routes and controllers
 	r.POST("/parse-feed", controllers.PostParseFeed)
 
-	logger.Info("Listening at :8080")
+	logger.Info(
+		fmt.Sprintf("Listening and serving HTTP on %s", serverAddress),
+	)
 
 	// Run server
-	err := r.Run()
+	err := r.Run(serverAddress)
 	if err != nil {
 		logger.Panic(
 			"Couldn't start the server",
