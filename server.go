@@ -13,18 +13,27 @@ import (
 )
 
 func main() {
+	envMode := os.Getenv("ENV")
+
+	// Set logger
+	var logger *zap.Logger
+
+	// Set mode of the application (logger and gin server)
+	if strings.ToLower(envMode) == "developmnent" {
+		gin.SetMode(gin.DebugMode)
+		logger, _ = zap.NewProduction()
+		logger.Info("Running in DEVELOPMENT mode")
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+		logger, _ = zap.NewDevelopment()
+		logger.Info("Running in PRODUCTION mode")
+	}
+	defer logger.Sync()
+
 	// Create gin server
 	r := gin.New()
 
-	// Set logger
-	envMode := os.Getenv("ENV")
-	var logger *zap.Logger
-	if strings.ToLower(envMode) == "production" {
-		logger, _ = zap.NewProduction()
-	} else {
-		logger, _ = zap.NewDevelopment()
-	}
-
+	// Use logger in gin server
 	zap.ReplaceGlobals(logger)
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 	r.Use(ginzap.RecoveryWithZap(logger, true))
@@ -32,6 +41,14 @@ func main() {
 	// Add routes and controllers
 	r.POST("/parse-feed", controllers.PostParseFeed)
 
+	logger.Info("Listening at :8080")
+
 	// Run server
-	r.Run()
+	err := r.Run()
+	if err != nil {
+		logger.Panic(
+			"Couldn't start the server",
+			zap.Error(err),
+		)
+	}
 }
