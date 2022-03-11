@@ -10,6 +10,7 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
@@ -49,12 +50,12 @@ func main() {
 
 	// Add routes and controllers
 	r.POST("/parse-feed", controllers.PostParseFeed)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
+	// Run server
 	logger.Info(
 		fmt.Sprintf("Listening and serving HTTP on %s", serverAddress),
 	)
-
-	// Run server
 	err := r.Run(serverAddress)
 	if err != nil {
 		logger.Panic(
