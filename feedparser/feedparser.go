@@ -46,7 +46,6 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 	)
 
 	// Fetch feed file from url
-	zap.L().Info("Fetching feed file", zap.String("feedUrl", feedUrl))
 	feedFile, lastModified, err := p.fetcher.FetchFile(feedUrl)
 	if err != nil {
 		zap.L().Error(
@@ -59,21 +58,25 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 	if len(lastModified) == 0 {
 		zap.L().Warn(`Feed file has no "Last-Modified" header`, zap.String("feedUrl", feedUrl))
 	}
-	zap.L().Info("Feed file fetched", zap.String("feedUrl", feedUrl))
 
 	// Parse xml to object
+	defer zap.L().Info("Parsing feed file", zap.String("feedUrl", feedUrl))
 	parsedShopItems := make(chan models.ShopItem)
 	go p.fileParser.ParseFile(feedFile, parsedShopItems)
 
+	// crewate channels for filtered shop items
 	allItems := make(chan models.ShopItem, 100)
 	biddingItems := make(chan models.ShopItem, 100)
 
+	// Filter items
+	defer zap.L().Info("Filtering shop items", zap.String("feedUrl", feedUrl))
 	go filterItems(
 		parsedShopItems,
 		allItems,
 		biddingItems,
 	)
 
+	defer zap.L().Info("Publishing shop items", zap.String("feedUrl", feedUrl))
 	p.queueWriter.WriteToQueue("shop_items", allItems)
 	p.queueWriter.WriteToQueue("shop_items_bidding", biddingItems)
 
@@ -85,12 +88,16 @@ func filterItems(
 	allItemsOutput chan models.ShopItem,
 	biddingItemsOutput chan models.ShopItem,
 ) {
+	// Close channels after filtering
+	defer close(allItemsOutput)
+	defer close(biddingItemsOutput)
+
 	for item := range input {
+		// Send items with HeurekaCPC to biddingItemsOutput
 		if len(item.HeurekaCPC) > 0 {
 			biddingItemsOutput <- item
 		}
+		// Send all items to allItemsOutput
 		allItemsOutput <- item
 	}
-	close(allItemsOutput)
-	close(biddingItemsOutput)
 }

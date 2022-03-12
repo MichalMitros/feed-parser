@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/MichalMitros/feed-parser/models"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/streadway/amqp"
 )
 
@@ -92,7 +94,7 @@ func (r *RabbitWriter) rabbitWritingRoutine(
 ) {
 	for item := range shopItemsInput {
 		body, _ := json.Marshal(item)
-		channel.Publish(
+		err := channel.Publish(
 			"",
 			queue.Name,
 			false,
@@ -102,5 +104,23 @@ func (r *RabbitWriter) rabbitWritingRoutine(
 				Body:        body,
 			},
 		)
+		// Increment prometheus counter
+		if err != nil {
+			publishedShopItemsFailures.Inc()
+		} else {
+			publishedShopItems.Inc()
+		}
 	}
 }
+
+// Prometheus published shop items
+var (
+	publishedShopItems = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "feedparser_rabbitmq_published_items_total",
+		Help: "The total number of ShopItems published to RabbitMQ",
+	})
+	publishedShopItemsFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "feedparser_rabbitmq_published_items_failures_total",
+		Help: "The total number of failures in publishing ShopItems to RabbitMQ",
+	})
+)

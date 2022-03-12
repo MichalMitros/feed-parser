@@ -71,7 +71,7 @@ func getEnvVarOrPanic(key string) string {
 
 	envVar, isEnvSet := os.LookupEnv(key)
 	if !isEnvSet {
-		zap.L().Fatal(
+		zap.L().Panic(
 			fmt.Sprintf("Required '%s' environment variable is not set", key),
 		)
 	}

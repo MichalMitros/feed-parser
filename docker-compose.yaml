@@ -1,38 +1,50 @@
-version: "3.2"
+version: "3"
 services:
   rabbitmq:
     image: rabbitmq:3.9.13-management
     container_name: 'rabbitmq'
     ports:
       - '15672:15672'
+      - '5672:5672'
     expose:
       - 5672
     networks:
-      - rabbitmq_net
+      - feedparser_net
     healthcheck:
       test: [ "CMD", "nc", "-z", "localhost", "5672" ]
       interval: 5s
       timeout: 10s
       retries: 3
+  prometheus:
+    image: bitnami/prometheus:2.33.5
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./.docker/prometheus:/etc/prometheus
+    networks:
+      - feedparser_net
+    command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yaml
   feedparser:
     container_name: 'feed-parser-service'
     build:
       dockerfile: Dockerfile
       context: ./
-    command: sh -c '/bin/wait-for-it.sh rabbitmq:5672 --timeout=30 ./server'
+    command: sh -c '/bin/wait-for-it.sh rabbitmq:5672 --timeout=30 -- ./server'
     ports:
       - '8080:8080'
+    expose:
+      - 8080
     environment:
       - RABBITMQ_HOST=rabbitmq:5672
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
-      - ENV=Production
+      - ENV=Production # Possible values: "Production" or "Development" (not case-sensitive)
     depends_on:
       - "rabbitmq"
     networks:
-      - rabbitmq_net
+      - feedparser_net
     restart: always
 
 networks:
-  rabbitmq_net:
+  feedparser_net:
     driver: bridge

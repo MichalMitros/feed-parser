@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
 )
 
@@ -34,14 +36,29 @@ func DefaultHttpFileFetcher() *HttpFileFetcher {
 func (f *HttpFileFetcher) FetchFile(
 	url string,
 ) (io.ReadCloser, string, error) {
+	defer zap.L().Sync()
 
 	resp, err := f.httpClient.Get(url)
 	if err != nil {
+		filesFetchedFailures.Inc()
 		return nil, "", err
 	}
+	filesFetched.Inc()
 	zap.L().Debug("Feed file HTTP headers", zap.Any("responseHeaders", resp.Header))
 
 	lastModified := resp.Header.Get("Last-Modified")
 
 	return resp.Body, lastModified, nil
 }
+
+// Prometheus fetched xml files counter
+var (
+	filesFetched = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "feedparser_fetched_xml_files_total",
+		Help: "The total number of fetched XML files",
+	})
+	filesFetchedFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "feedparser_fetched_xml_files_failures_total",
+		Help: "The total number of failures in fetching XML files",
+	})
+)
