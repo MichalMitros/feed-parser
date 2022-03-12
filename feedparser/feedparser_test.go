@@ -87,7 +87,7 @@ func TestFeedParserResults(t *testing.T) {
 	// Check if mockedQueueWriter has proper queues
 	isBiddingItemsQueueCreated := false
 	isAllItemsQueueCreated := false
-	for k, _ := range mockedWriter.queues {
+	for k := range mockedWriter.queues {
 		switch k {
 		case "shop_items":
 			isAllItemsQueueCreated = true
