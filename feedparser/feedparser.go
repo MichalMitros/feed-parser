@@ -29,7 +29,7 @@ func NewFeedParser(
 	}
 }
 
-func (p *FeedParser) ParseFeeds(feedUrls []string) {
+func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
 	for _, url := range feedUrls {
 		go func(url string) {
 			p.ParseFeed(url)

@@ -56,8 +56,8 @@ func PostParseFeed(c *gin.Context) {
 		return
 	}
 
-	// Parse all feeds from request
-	feedParser.ParseFeeds(request.FeedUrls)
+	// Parse all feeds from the request
+	feedParser.ParseFeedsAsync(request.FeedUrls)
 
 	// Send response
 	c.IndentedJSON(http.StatusAccepted, gin.H{
