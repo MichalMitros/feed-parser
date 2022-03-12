@@ -29,6 +29,8 @@ func DefaultHttpFileFetcher() *HttpFileFetcher {
 	}
 }
 
+// Fetch file and returns response body as io.ReadCloser,
+// "Last-Modified" header as string and potentially an error
 func (f *HttpFileFetcher) FetchFile(
 	url string,
 ) (io.ReadCloser, string, error) {
