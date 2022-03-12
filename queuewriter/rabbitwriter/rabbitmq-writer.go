@@ -53,6 +53,7 @@ func NewRabbitWriter(
 func (r RabbitWriter) WriteToQueue(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
+	errorsOutput chan error,
 ) error {
 
 	// Get channel from connection
@@ -80,6 +81,7 @@ func (r RabbitWriter) WriteToQueue(
 		ch,
 		&q,
 		shopItemsInput,
+		errorsOutput,
 	)
 
 	return nil
@@ -91,7 +93,9 @@ func (r *RabbitWriter) rabbitWritingRoutine(
 	channel *amqp.Channel,
 	queue *amqp.Queue,
 	shopItemsInput chan models.ShopItem,
+	errorsOutput chan error,
 ) {
+	defer close(errorsOutput)
 	for item := range shopItemsInput {
 		body, _ := json.Marshal(item)
 		err := channel.Publish(
@@ -106,6 +110,7 @@ func (r *RabbitWriter) rabbitWritingRoutine(
 		)
 		// Increment prometheus counter
 		if err != nil {
+			errorsOutput <- err
 			publishedShopItemsFailures.Inc()
 		} else {
 			publishedShopItems.Inc()

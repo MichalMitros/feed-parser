@@ -15,10 +15,11 @@ func TestXmlFeedParser(t *testing.T) {
 	xmlFileString, _ := xml.Marshal(mockedCorrectShop)
 	mockedReadCloser := io.NopCloser(strings.NewReader(string(xmlFileString)))
 	output := make(chan models.ShopItem, len(mockedCorrectShop.ShopItems))
+	errorsOutput := make(chan error, 1)
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(mockedReadCloser, output)
+	parser.ParseFile(mockedReadCloser, output, errorsOutput)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)
@@ -58,10 +59,11 @@ func TestXmlFeedParserFailure(t *testing.T) {
 	)
 	mockedReadCloser := io.NopCloser(strings.NewReader(xmlFileString))
 	output := make(chan models.ShopItem, len(mockedCorrectShop.ShopItems))
+	errorsOutput := make(chan error, 10)
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(mockedReadCloser, output)
+	parser.ParseFile(mockedReadCloser, output, errorsOutput)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)
@@ -70,7 +72,20 @@ func TestXmlFeedParserFailure(t *testing.T) {
 	// Check if there is one partially parsed item
 	if len(results) != 1 {
 		t.Fatalf(
-			`xmlparser.ParseFile(mockedCorrectShop, output), number of results = %d, want %d`,
+			`xmlparser.ParseFile(mockedCorrectShop, output, erorsOutput), number of results = %d, want %d`,
+			len(results),
+			1,
+		)
+	}
+
+	// Check if there are any errors in errorsOutput channel
+	resultErrors := []error{}
+	for e := range errorsOutput {
+		resultErrors = append(resultErrors, e)
+	}
+	if len(resultErrors) > 0 {
+		t.Fatalf(
+			`xmlparser.ParseFile(mockedCorrectShop, output, erorsOutput), number of results = %d, want %d`,
 			len(results),
 			1,
 		)

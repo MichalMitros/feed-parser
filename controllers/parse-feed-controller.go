@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/MichalMitros/feed-parser/controllers/contracts"
+	"github.com/MichalMitros/feed-parser/errorscollector"
 	"github.com/MichalMitros/feed-parser/feedparser"
 	"github.com/MichalMitros/feed-parser/filefetcher/httpfilefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
@@ -38,8 +39,10 @@ func init() {
 
 	fileParser := xmlparser.NewXmlFeedParser()
 
+	errorsCollector := errorscollector.NewErrorsCollector()
+
 	// Create FeedParser instance for controllers usage
-	feedParser = feedparser.NewFeedParser(fetcher, fileParser, queueWriter)
+	feedParser = feedparser.NewFeedParser(fetcher, fileParser, queueWriter, errorsCollector)
 }
 
 func PostParseFeed(c *gin.Context) {

@@ -19,10 +19,12 @@ func TestFeedParserFunctionsCalling(t *testing.T) {
 	mockedFetcher := MockedFileFetcher{}
 	mockedFileParser := MockedFileParser{}
 	mockedWriter := MockedQueueWriter{}
+	mockedErrorsCollector := NewMockedErrorsCollector()
 	mockedFeedParser := NewFeedParser(
 		&mockedFetcher,
 		&mockedFileParser,
 		&mockedWriter,
+		mockedErrorsCollector,
 	)
 	testUrls := []string{"test_url_1", "test_url_2"}
 
@@ -53,6 +55,13 @@ func TestFeedParserFunctionsCalling(t *testing.T) {
 			2*len(testUrls),
 		)
 	}
+	if mockedErrorsCollector.NumOfCalls != 3*len(testUrls) {
+		t.Fatalf(
+			`FeedParser.ParseFeedsAsync(testUrls), number of error collector calls = %d, want %d`,
+			mockedErrorsCollector.NumOfCalls,
+			3*len(testUrls),
+		)
+	}
 }
 
 func TestFeedParserResults(t *testing.T) {
@@ -62,10 +71,12 @@ func TestFeedParserResults(t *testing.T) {
 	)
 	mockedFileParser := xmlparser.NewXmlFeedParser()
 	mockedWriter := NewMockedQueueWriter()
+	mockedErrorsCollector := NewMockedErrorsCollector()
 	mockedFeedParser := NewFeedParser(
 		mockedFetcher,
 		mockedFileParser,
 		mockedWriter,
+		mockedErrorsCollector,
 	)
 	testUrls := []string{"test_url_1"}
 
@@ -126,6 +137,14 @@ func TestFeedParserResults(t *testing.T) {
 		)
 	}
 
+	// Check if there were no errors during processing
+	if len(mockedErrorsCollector.CollectedErrors) > 0 {
+		t.Fatalf(
+			"FeedParser.ParseFeedsAsync(testUrls), got %d errors, expected 0",
+			len(mockedErrorsCollector.CollectedErrors),
+		)
+	}
+
 }
 
 // MOCKED DATA
@@ -143,7 +162,12 @@ func NewMockedQueueWriter() *MockedQueueWriter {
 	}
 }
 
-func (w *MockedQueueWriter) WriteToQueue(queueName string, shopItems chan models.ShopItem) error {
+func (w *MockedQueueWriter) WriteToQueue(
+	queueName string,
+	shopItems chan models.ShopItem,
+	errorsOutput chan error,
+) error {
+	defer close(errorsOutput)
 	w.NumOfFuncCalls++
 	for item := range shopItems {
 		queueItems := w.queues[queueName]
@@ -173,7 +197,9 @@ type MockedFileParser struct {
 func (p *MockedFileParser) ParseFile(
 	feedFile io.ReadCloser,
 	shopItemsOutput chan models.ShopItem,
+	errorsOutput chan error,
 ) {
+	defer close(errorsOutput)
 	defer close(shopItemsOutput)
 	p.NumOfFuncCalls++
 }
@@ -187,6 +213,38 @@ func (c MockedHttpClient) Get(url string) (*http.Response, error) {
 		StatusCode: 200,
 		Body:       mockedReadCloser,
 	}, nil
+}
+
+// Mocked ErrorsCollector with HasBeenCalled value for checking functions calling
+type MockedErrorsCollector struct {
+	CollectedErrors []error
+	NumOfCalls      int
+}
+
+func NewMockedErrorsCollector() *MockedErrorsCollector {
+	return &MockedErrorsCollector{
+		CollectedErrors: []error{},
+		NumOfCalls:      0,
+	}
+}
+
+func (e *MockedErrorsCollector) HandleErrors(
+	feedUrl string,
+	stageName string,
+) (errorsInput chan error, err error) {
+	e.NumOfCalls++
+
+	// Create channel for errors collecting
+	errorsInput = make(chan error)
+
+	// Start new go routine for collecting errors
+	go func(feedUrl string, stageName string, errorsInput chan error) {
+		for er := range errorsInput {
+			e.CollectedErrors = append(e.CollectedErrors, er)
+		}
+	}(feedUrl, stageName, errorsInput)
+
+	return errorsInput, nil
 }
 
 // io.ReadCloser with mockedCorrectShop
