@@ -21,7 +21,7 @@ func NewXmlFeedParser() *XmlFeedParser {
 // Parses xml file and send shop items to shopItemsOutput channel
 // Closes the channel when finished
 func (p *XmlFeedParser) ParseFile(
-	feedXmlFile io.ReadCloser,
+	feedXmlFile *io.ReadCloser,
 	shopItemsOutput chan models.ShopItem,
 ) error {
 	defer zap.L().Sync()
@@ -29,16 +29,17 @@ func (p *XmlFeedParser) ParseFile(
 	// Close items channel when finished parsing
 	defer close(shopItemsOutput)
 
-	decoder := xml.NewDecoder(feedXmlFile)
+	decoder := xml.NewDecoder(*feedXmlFile)
+	var err error
 
 	for {
 		// Get next xml token
-		t, err := decoder.Token()
+		t, parsingErr := decoder.Token()
 		// Break when file is fully processed
 		if t == nil {
 			break
 		}
-		if err != nil && err != io.EOF {
+		if parsingErr != nil && err != io.EOF {
 			return err
 		}
 		// When token is a xml <SHOPITEM> element...
@@ -58,7 +59,7 @@ func (p *XmlFeedParser) ParseFile(
 		}
 	}
 
-	return nil
+	return err
 }
 
 // Prometheus parsed items counter

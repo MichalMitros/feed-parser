@@ -35,7 +35,7 @@ func DefaultHttpFileFetcher() *HttpFileFetcher {
 // "Last-Modified" header as string and potentially an error
 func (f *HttpFileFetcher) FetchFile(
 	url string,
-) (io.ReadCloser, string, error) {
+) (*io.ReadCloser, string, error) {
 	defer zap.L().Sync()
 
 	resp, err := f.httpClient.Get(url)
@@ -48,7 +48,7 @@ func (f *HttpFileFetcher) FetchFile(
 
 	lastModified := resp.Header.Get("Last-Modified")
 
-	return resp.Body, lastModified, nil
+	return &resp.Body, lastModified, nil
 }
 
 // Prometheus fetched xml files counter

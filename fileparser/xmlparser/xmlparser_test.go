@@ -18,7 +18,7 @@ func TestXmlFeedParser(t *testing.T) {
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(mockedReadCloser, output)
+	parser.ParseFile(&mockedReadCloser, output)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)
@@ -62,7 +62,7 @@ func TestXmlFeedParserFailure(t *testing.T) {
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(mockedReadCloser, output)
+	parser.ParseFile(&mockedReadCloser, output)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)

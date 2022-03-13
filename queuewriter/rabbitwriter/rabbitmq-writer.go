@@ -56,6 +56,7 @@ func (r RabbitWriter) WriteToQueue(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
 ) error {
+	var err error
 	// Get channel from connection
 	ch, err := r.connection.Channel()
 	if err != nil {
@@ -88,7 +89,7 @@ func (r RabbitWriter) WriteToQueue(
 		}
 	}
 
-	return nil
+	return err
 }
 
 // Prometheus published shop items

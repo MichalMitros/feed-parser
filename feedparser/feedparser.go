@@ -10,6 +10,7 @@ import (
 	"github.com/MichalMitros/feed-parser/models"
 	"github.com/MichalMitros/feed-parser/queuewriter"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type FeedParser struct {
@@ -31,7 +32,7 @@ func NewFeedParser(
 	}
 }
 
-func (p *FeedParser) ParseFeeds(feedUrls []string) {
+func (p *FeedParser) ParseFeeds(feedUrls []string) []models.FeedParsingResult {
 	var wg sync.WaitGroup
 	parsingStatuses := []models.FeedParsingResult{}
 	for _, url := range feedUrls {
@@ -50,7 +51,7 @@ func (p *FeedParser) ParseFeeds(feedUrls []string) {
 		}(url, parsingStatuses, &wg)
 	}
 	wg.Wait()
-
+	return parsingStatuses
 }
 
 func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
@@ -64,8 +65,7 @@ func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
 func (p *FeedParser) ParseFeed(feedUrl string) error {
 	defer zap.L().Sync()
 
-	var wg sync.WaitGroup
-	asyncJobsErrors := []error{}
+	g := new(errgroup.Group)
 
 	zap.L().Info(
 		fmt.Sprintf("Started parsing feed from %s", feedUrl),
@@ -96,8 +96,7 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 		)
 		return err
 	}
-	parsingError := p.parseFeedFileAsync(feedFile, parsedShopItems, &wg)
-	asyncJobsErrors = append(asyncJobsErrors, parsingError)
+	p.parseFeedFileAsync(feedFile, parsedShopItems, g)
 
 	// Create channels for filtered shop items
 	allItems := make(chan models.ShopItem)
@@ -109,27 +108,22 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 		parsedShopItems,
 		allItems,
 		biddingItems,
-		&wg,
+		g,
 	)
 
 	// Publishing shop item to the queue
 	zap.L().Info("Publishing shop items", zap.String("feedUrl", feedUrl))
-	allItemsQueueError := p.writeItemsToQueueAsync("shop_items", allItems, &wg)
-	biddingItemsQueueError := p.writeItemsToQueueAsync("shop_items_bidding", biddingItems, &wg)
-	asyncJobsErrors = append(asyncJobsErrors, allItemsQueueError)
-	asyncJobsErrors = append(asyncJobsErrors, biddingItemsQueueError)
+	p.writeItemsToQueueAsync("shop_items", allItems, g)
+	p.writeItemsToQueueAsync("shop_items_bidding", biddingItems, g)
 
-	wg.Wait()
-
-	for _, jobError := range asyncJobsErrors {
-		if err != nil {
-			zap.L().Error(
-				"Feed parsing error",
-				zap.String("feedUrl", feedUrl),
-				zap.Error(err),
-			)
-			return jobError
-		}
+	// Wait for all routines to complete
+	if err := g.Wait(); err != nil {
+		zap.L().Error(
+			fmt.Sprintf("Error during parsing feed from %s", feedUrl),
+			zap.String("feedUrl", feedUrl),
+			zap.Error(err),
+		)
+		return err
 	}
 
 	zap.L().Info(
@@ -144,18 +138,14 @@ func (p *FeedParser) filterItemsAsync(
 	input chan models.ShopItem,
 	allItemsOutput chan models.ShopItem,
 	biddingItemsOutput chan models.ShopItem,
-	wg *sync.WaitGroup,
+	g *errgroup.Group,
 ) {
-	wg.Add(1)
-	go func(
-		input chan models.ShopItem,
-		allItemsOutput chan models.ShopItem,
-		biddingItemsOutput chan models.ShopItem,
-		wg *sync.WaitGroup,
-	) {
-		defer wg.Done()
-		p.filterItems(input, allItemsOutput, biddingItemsOutput)
-	}(input, allItemsOutput, biddingItemsOutput, wg)
+	g.Go(
+		func() error {
+			p.filterItems(input, allItemsOutput, biddingItemsOutput)
+			return nil
+		},
+	)
 }
 
 func (p FeedParser) filterItems(
@@ -178,46 +168,27 @@ func (p FeedParser) filterItems(
 }
 
 func (p *FeedParser) parseFeedFileAsync(
-	feedFile io.ReadCloser,
+	feedFile *io.ReadCloser,
 	parsedShopItems chan models.ShopItem,
-	wg *sync.WaitGroup,
-) error {
-	wg.Add(1)
-	var err error
-	err = nil
-	go func(
-		fileParser fileparser.FeedFileParserInterface,
-		feedFile io.ReadCloser,
-		parsedShopItems chan models.ShopItem,
-		err error,
-		wg *sync.WaitGroup,
-	) {
-		defer wg.Done()
-		err = fileParser.ParseFile(feedFile, parsedShopItems)
-	}(p.fileParser, feedFile, parsedShopItems, err, wg)
-
-	return err
+	g *errgroup.Group,
+) {
+	g.Go(
+		func() error {
+			return p.fileParser.ParseFile(feedFile, parsedShopItems)
+		},
+	)
 }
 
 func (p *FeedParser) writeItemsToQueueAsync(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
-	wg *sync.WaitGroup,
-) error {
-	wg.Add(1)
-	var err error
-	err = nil
-	go func(
-		queueWriter queuewriter.QueueWriterInterface,
-		queueName string,
-		shopItemsInput chan models.ShopItem,
-		err error,
-		wg *sync.WaitGroup,
-	) {
-		defer wg.Done()
-		err = queueWriter.WriteToQueue(queueName, shopItemsInput)
-	}(p.queueWriter, queueName, shopItemsInput, err, wg)
-	return err
+	g *errgroup.Group,
+) {
+	g.Go(
+		func() error {
+			return p.queueWriter.WriteToQueue(queueName, shopItemsInput)
+		},
+	)
 }
 
 func logFeedLastModification(feedUrl string, lastModified string) {

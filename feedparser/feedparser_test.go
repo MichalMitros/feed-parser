@@ -157,7 +157,7 @@ type MockedFileFetcher struct {
 	NumOfFuncCalls int
 }
 
-func (f *MockedFileFetcher) FetchFile(url string) (io.ReadCloser, string, error) {
+func (f *MockedFileFetcher) FetchFile(url string) (*io.ReadCloser, string, error) {
 	f.NumOfFuncCalls++
 	return nil, "", nil
 }
@@ -168,7 +168,7 @@ type MockedFileParser struct {
 }
 
 func (p *MockedFileParser) ParseFile(
-	feedFile io.ReadCloser,
+	feedFile *io.ReadCloser,
 	shopItemsOutput chan models.ShopItem,
 ) error {
 	defer close(shopItemsOutput)

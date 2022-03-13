@@ -84,11 +84,11 @@ func PostParseFeed(c *gin.Context) {
 	}
 
 	// Parse all feeds from the request
-	feedParser.ParseFeeds(request.FeedUrls)
+	statuses := feedParser.ParseFeeds(request.FeedUrls)
 
 	// Send response
-	c.IndentedJSON(http.StatusAccepted, gin.H{
-		"status": "ACCEPTED",
+	c.IndentedJSON(http.StatusOK, contracts.ParseFeedResponse{
+		Statuses: statuses,
 	})
 }
 
