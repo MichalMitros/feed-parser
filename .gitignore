@@ -14,4 +14,10 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 
+# env files
 .env
+
+# .docker except configuration files
+.docker
+!.docker/prometheus/prometheus.rules.yaml
+!.docker/prometheus/prometheus.yaml
