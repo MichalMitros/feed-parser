@@ -23,22 +23,23 @@ func NewXmlFeedParser() *XmlFeedParser {
 func (p *XmlFeedParser) ParseFile(
 	feedXmlFile io.ReadCloser,
 	shopItemsOutput chan models.ShopItem,
-	errorsOutput chan error,
-) {
+) error {
 	defer zap.L().Sync()
 
-	// Close channels when finished parsing
+	// Close items channel when finished parsing
 	defer close(shopItemsOutput)
-	defer close(errorsOutput)
 
 	decoder := xml.NewDecoder(feedXmlFile)
 
 	for {
 		// Get next xml token
-		t, _ := decoder.Token()
+		t, err := decoder.Token()
 		// Break when file is fully processed
 		if t == nil {
 			break
+		}
+		if err != nil && err != io.EOF {
+			return err
 		}
 		// When token is a xml <SHOPITEM> element...
 		switch se := t.(type) {
@@ -46,10 +47,9 @@ func (p *XmlFeedParser) ParseFile(
 			if se.Name.Local == "SHOPITEM" {
 				// Parse single ShopItem and send results to output channel
 				var item models.ShopItem
-				err := decoder.DecodeElement(&item, &se)
+				err = decoder.DecodeElement(&item, &se)
 				if err != nil && err != io.EOF {
-					errorsOutput <- err
-					continue
+					return err
 				}
 				shopItemsOutput <- item
 				// Increment prometheus parsed items counter
@@ -57,6 +57,8 @@ func (p *XmlFeedParser) ParseFile(
 			}
 		}
 	}
+
+	return nil
 }
 
 // Prometheus parsed items counter

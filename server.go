@@ -66,6 +66,7 @@ func main() {
 
 	// Add routes and controllers
 	r.POST("/parse-feed", controllers.PostParseFeed)
+	r.POST("/parse-feed-async", controllers.PostParseFeedAsync)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Run server

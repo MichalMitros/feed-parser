@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/MichalMitros/feed-parser/controllers/contracts"
-	"github.com/MichalMitros/feed-parser/errorscollector"
 	"github.com/MichalMitros/feed-parser/feedparser"
 	"github.com/MichalMitros/feed-parser/filefetcher/httpfilefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
@@ -43,10 +42,31 @@ func init() {
 
 	fileParser := xmlparser.NewXmlFeedParser()
 
-	errorsCollector := errorscollector.NewErrorsCollector()
-
 	// Create FeedParser instance for controllers usage
-	feedParser = feedparser.NewFeedParser(fetcher, fileParser, queueWriter, errorsCollector)
+	feedParser = feedparser.NewFeedParser(fetcher, fileParser, queueWriter)
+}
+
+func PostParseFeedAsync(c *gin.Context) {
+	defer zap.L().Sync()
+
+	// Parse request json to object
+	var request contracts.ParseFeedRequest
+	if err := c.BindJSON(&request); err != nil || len(request.FeedUrls) == 0 {
+		zap.L().Warn("POST /parse-feed Bad Request", zap.Error(err))
+		c.IndentedJSON(http.StatusBadRequest, gin.H{
+			"status":  "BAD_REQUEST",
+			"message": "Request should contain field 'feedUrls' with not empty list of urls",
+		})
+		return
+	}
+
+	// Parse all feeds from the request
+	feedParser.ParseFeedsAsync(request.FeedUrls)
+
+	// Send response
+	c.IndentedJSON(http.StatusAccepted, gin.H{
+		"status": "ACCEPTED",
+	})
 }
 
 func PostParseFeed(c *gin.Context) {
@@ -64,7 +84,7 @@ func PostParseFeed(c *gin.Context) {
 	}
 
 	// Parse all feeds from the request
-	feedParser.ParseFeedsAsync(request.FeedUrls)
+	feedParser.ParseFeeds(request.FeedUrls)
 
 	// Send response
 	c.IndentedJSON(http.StatusAccepted, gin.H{

@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/MichalMitros/feed-parser/filefetcher/httpfilefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
@@ -19,19 +18,15 @@ func TestFeedParserFunctionsCalling(t *testing.T) {
 	mockedFetcher := MockedFileFetcher{}
 	mockedFileParser := MockedFileParser{}
 	mockedWriter := MockedQueueWriter{}
-	mockedErrorsCollector := NewMockedErrorsCollector()
 	mockedFeedParser := NewFeedParser(
 		&mockedFetcher,
 		&mockedFileParser,
 		&mockedWriter,
-		mockedErrorsCollector,
 	)
 	testUrls := []string{"test_url_1", "test_url_2"}
 
 	// Use ParseFeed function
-	mockedFeedParser.ParseFeedsAsync(testUrls)
-	// sleep to allow all routines to fully execute
-	time.Sleep(time.Millisecond * 50)
+	mockedFeedParser.ParseFeeds(testUrls)
 
 	// Check if all parser's building blocks has been called
 	if mockedFetcher.NumOfFuncCalls != len(testUrls) {
@@ -55,13 +50,6 @@ func TestFeedParserFunctionsCalling(t *testing.T) {
 			2*len(testUrls),
 		)
 	}
-	if mockedErrorsCollector.NumOfCalls != 3*len(testUrls) {
-		t.Fatalf(
-			`FeedParser.ParseFeedsAsync(testUrls), number of error collector calls = %d, want %d`,
-			mockedErrorsCollector.NumOfCalls,
-			3*len(testUrls),
-		)
-	}
 }
 
 func TestFeedParserResults(t *testing.T) {
@@ -71,12 +59,10 @@ func TestFeedParserResults(t *testing.T) {
 	)
 	mockedFileParser := xmlparser.NewXmlFeedParser()
 	mockedWriter := NewMockedQueueWriter()
-	mockedErrorsCollector := NewMockedErrorsCollector()
 	mockedFeedParser := NewFeedParser(
 		mockedFetcher,
 		mockedFileParser,
 		mockedWriter,
-		mockedErrorsCollector,
 	)
 	testUrls := []string{"test_url_1"}
 
@@ -91,9 +77,7 @@ func TestFeedParserResults(t *testing.T) {
 	}
 
 	// Use ParseFeed function
-	mockedFeedParser.ParseFeedsAsync(testUrls)
-	// sleep to allow all routines to fully execute
-	time.Sleep(time.Millisecond * 50)
+	mockedFeedParser.ParseFeeds(testUrls)
 
 	// Check if mockedQueueWriter has proper queues
 	isBiddingItemsQueueCreated := false
@@ -136,15 +120,6 @@ func TestFeedParserResults(t *testing.T) {
 			expectedBiddingItems,
 		)
 	}
-
-	// Check if there were no errors during processing
-	if len(mockedErrorsCollector.CollectedErrors) > 0 {
-		t.Fatalf(
-			"FeedParser.ParseFeedsAsync(testUrls), got %d errors, expected 0",
-			len(mockedErrorsCollector.CollectedErrors),
-		)
-	}
-
 }
 
 // MOCKED DATA
@@ -165,9 +140,7 @@ func NewMockedQueueWriter() *MockedQueueWriter {
 func (w *MockedQueueWriter) WriteToQueue(
 	queueName string,
 	shopItems chan models.ShopItem,
-	errorsOutput chan error,
-) {
-	defer close(errorsOutput)
+) error {
 	w.NumOfFuncCalls++
 	for item := range shopItems {
 		queueItems := w.queues[queueName]
@@ -176,6 +149,7 @@ func (w *MockedQueueWriter) WriteToQueue(
 		}
 		w.queues[queueName] = append(queueItems, item)
 	}
+	return nil
 }
 
 // Mocked FileParser with HasBeenCalled value for checking functions calling
@@ -196,11 +170,10 @@ type MockedFileParser struct {
 func (p *MockedFileParser) ParseFile(
 	feedFile io.ReadCloser,
 	shopItemsOutput chan models.ShopItem,
-	errorsOutput chan error,
-) {
-	defer close(errorsOutput)
+) error {
 	defer close(shopItemsOutput)
 	p.NumOfFuncCalls++
+	return nil
 }
 
 // Mocked http.Client as struct implementing FileFetcher interface

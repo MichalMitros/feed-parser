@@ -55,14 +55,11 @@ func NewRabbitWriter(
 func (r RabbitWriter) WriteToQueue(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
-	errorsOutput chan error,
-) {
-	defer close(errorsOutput)
-
+) error {
 	// Get channel from connection
 	ch, err := r.connection.Channel()
 	if err != nil {
-		errorsOutput <- err
+		return err
 	}
 
 	// Declare RabbitMQ queue
@@ -71,7 +68,7 @@ func (r RabbitWriter) WriteToQueue(
 		wabbit.Option{},
 	)
 	if err != nil {
-		errorsOutput <- err
+		return err
 	}
 
 	for item := range shopItemsInput {
@@ -84,12 +81,14 @@ func (r RabbitWriter) WriteToQueue(
 		)
 		// Increment prometheus counter
 		if err != nil {
-			errorsOutput <- err
 			publishedShopItemsFailures.Inc()
+			return err
 		} else {
 			publishedShopItems.Inc()
 		}
 	}
+
+	return nil
 }
 
 // Prometheus published shop items

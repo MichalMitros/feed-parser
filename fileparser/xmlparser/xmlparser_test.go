@@ -15,11 +15,10 @@ func TestXmlFeedParser(t *testing.T) {
 	xmlFileString, _ := xml.Marshal(mockedCorrectShop)
 	mockedReadCloser := io.NopCloser(strings.NewReader(string(xmlFileString)))
 	output := make(chan models.ShopItem, len(mockedCorrectShop.ShopItems))
-	errorsOutput := make(chan error, 1)
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(mockedReadCloser, output, errorsOutput)
+	parser.ParseFile(mockedReadCloser, output)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)
@@ -63,7 +62,7 @@ func TestXmlFeedParserFailure(t *testing.T) {
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(mockedReadCloser, output, errorsOutput)
+	parser.ParseFile(mockedReadCloser, output)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)
