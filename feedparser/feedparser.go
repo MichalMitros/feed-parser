@@ -10,6 +10,8 @@ import (
 	"github.com/MichalMitros/feed-parser/fileparser"
 	"github.com/MichalMitros/feed-parser/models"
 	"github.com/MichalMitros/feed-parser/queuewriter"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -42,6 +44,7 @@ func (p *FeedParser) ParseFeedFiles(feedUrls []string) []models.FeedParsingResul
 	parsingStatuses := []models.FeedParsingResult{}
 	for _, url := range feedUrls {
 		wg.Add(1)
+		parsingFeeds.Inc()
 		go func(url string, parsingStatus []models.FeedParsingResult, wg *sync.WaitGroup) {
 			defer wg.Done()
 			parsingResult := models.FeedParsingResult{
@@ -56,6 +59,7 @@ func (p *FeedParser) ParseFeedFiles(feedUrls []string) []models.FeedParsingResul
 				}
 			}
 			parsingStatuses = append(parsingStatuses, parsingResult)
+			parsingFeeds.Dec()
 		}(url, parsingStatuses, &wg)
 	}
 	wg.Wait()
@@ -221,3 +225,11 @@ func logFeedLastModification(feedUrl string, lastModified string) {
 		)
 	}
 }
+
+// Prometheus feeds during parsing gauge
+var (
+	parsingFeeds = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "feedparser_parsing_feeds_jobs_current",
+		Help: "Current number of feeds being processed",
+	})
+)
