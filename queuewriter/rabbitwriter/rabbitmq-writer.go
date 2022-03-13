@@ -28,6 +28,7 @@ type RabbitWriterOptions struct {
 // Creates new RabbitWriter instance
 func NewRabbitWriter(
 	options RabbitWriterOptions,
+	dialFunc func(uri string) (*amqp.Conn, error),
 ) (*RabbitWriter, error) {
 	// Create connection
 	connString :=
@@ -35,7 +36,7 @@ func NewRabbitWriter(
 			options.Username + ":" +
 			options.Password + "@" +
 			options.Hostname + "/"
-	conn, err := amqp.Dial(connString)
+	conn, err := dialFunc(connString)
 	if err != nil {
 		return nil, err
 	}

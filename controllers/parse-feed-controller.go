@@ -11,6 +11,7 @@ import (
 	"github.com/MichalMitros/feed-parser/filefetcher/httpfilefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
 	"github.com/MichalMitros/feed-parser/queuewriter/rabbitwriter"
+	"github.com/NeowayLabs/wabbit/amqp"
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
@@ -25,11 +26,14 @@ func init() {
 
 	fetcher := httpfilefetcher.DefaultHttpFileFetcher()
 
-	queueWriter, err := rabbitwriter.NewRabbitWriter(rabbitwriter.RabbitWriterOptions{
-		Hostname: getEnvVarOrPanic("RABBITMQ_HOST"),
-		Username: getEnvVarOrPanic("RABBITMQ_USER"),
-		Password: getEnvVarOrPanic("RABBITMQ_PASSWORD"),
-	})
+	queueWriter, err := rabbitwriter.NewRabbitWriter(
+		rabbitwriter.RabbitWriterOptions{
+			Hostname: getEnvVarOrPanic("RABBITMQ_HOST"),
+			Username: getEnvVarOrPanic("RABBITMQ_USER"),
+			Password: getEnvVarOrPanic("RABBITMQ_PASSWORD"),
+		},
+		amqp.Dial,
+	)
 	if err != nil {
 		zap.L().Fatal(
 			"Cannot establish connection to RabbitMQ",
