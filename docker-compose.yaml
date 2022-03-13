@@ -39,6 +39,7 @@ services:
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
       - ENV=Production # Possible values: "Production" or "Development" (not case-sensitive)
+      - SERVER_ADDRESS=:8080
     depends_on:
       - "rabbitmq"
     networks:
