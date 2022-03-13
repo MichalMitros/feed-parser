@@ -166,7 +166,7 @@ func (w *MockedQueueWriter) WriteToQueue(
 	queueName string,
 	shopItems chan models.ShopItem,
 	errorsOutput chan error,
-) error {
+) {
 	defer close(errorsOutput)
 	w.NumOfFuncCalls++
 	for item := range shopItems {
@@ -176,7 +176,6 @@ func (w *MockedQueueWriter) WriteToQueue(
 		}
 		w.queues[queueName] = append(queueItems, item)
 	}
-	return nil
 }
 
 // Mocked FileParser with HasBeenCalled value for checking functions calling

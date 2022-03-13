@@ -56,12 +56,13 @@ func (r RabbitWriter) WriteToQueue(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
 	errorsOutput chan error,
-) error {
+) {
+	defer close(errorsOutput)
 
 	// Get channel from connection
 	ch, err := r.connection.Channel()
 	if err != nil {
-		return err
+		errorsOutput <- err
 	}
 
 	// Declare RabbitMQ queue
@@ -70,35 +71,14 @@ func (r RabbitWriter) WriteToQueue(
 		wabbit.Option{},
 	)
 	if err != nil {
-		return err
+		errorsOutput <- err
 	}
 
-	// Start new go routine sending items
-	// from shopItemsInput channel to the queue
-	go r.rabbitWritingRoutine(
-		&ch,
-		&q,
-		shopItemsInput,
-		errorsOutput,
-	)
-
-	return nil
-}
-
-// Writes objects from shopItemsInput
-// to the queue in JSON format
-func (r *RabbitWriter) rabbitWritingRoutine(
-	channel *wabbit.Channel,
-	queue *wabbit.Queue,
-	shopItemsInput chan models.ShopItem,
-	errorsOutput chan error,
-) {
-	defer close(errorsOutput)
 	for item := range shopItemsInput {
 		body, _ := json.Marshal(item)
-		err := (*channel).Publish(
+		err := (ch).Publish(
 			"",
-			(*queue).Name(),
+			q.Name(),
 			body,
 			wabbit.Option{},
 		)

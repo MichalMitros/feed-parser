@@ -2,6 +2,8 @@ package feedparser
 
 import (
 	"fmt"
+	"io"
+	"sync"
 
 	"github.com/MichalMitros/feed-parser/errorscollector"
 	"github.com/MichalMitros/feed-parser/filefetcher"
@@ -44,6 +46,8 @@ func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
 func (p *FeedParser) ParseFeed(feedUrl string) {
 	defer zap.L().Sync()
 
+	var wg sync.WaitGroup
+
 	zap.L().Info(
 		fmt.Sprintf("Started parsing feed from %s", feedUrl),
 		zap.String("feedUrl", feedUrl),
@@ -60,14 +64,7 @@ func (p *FeedParser) ParseFeed(feedUrl string) {
 		return
 	}
 	// Check if feed has last modified value
-	if len(lastModified) == 0 {
-		zap.L().Warn(`Feed file has no "Last-Modified" header`, zap.String("feedUrl", feedUrl))
-	} else {
-		zap.L().Info(
-			fmt.Sprintf(`Feed file %s last modification: %s`, feedUrl, lastModified),
-			zap.String("feedUrl", feedUrl),
-		)
-	}
+	logFeedLastModification(feedUrl, lastModified)
 
 	// Parse xml to object
 	zap.L().Info("Parsing feed file", zap.String("feedUrl", feedUrl))
@@ -81,18 +78,26 @@ func (p *FeedParser) ParseFeed(feedUrl string) {
 		)
 		return
 	}
-	go p.fileParser.ParseFile(feedFile, parsedShopItems, parseErrors)
+	wg.Add(1)
+	p.parseFeedFileAsync(
+		feedFile,
+		parsedShopItems,
+		parseErrors,
+		&wg,
+	)
 
 	// Create channels for filtered shop items
-	allItems := make(chan models.ShopItem, 100)
-	biddingItems := make(chan models.ShopItem, 100)
+	allItems := make(chan models.ShopItem)
+	biddingItems := make(chan models.ShopItem)
 
 	// Filter items
 	zap.L().Info("Filtering shop items", zap.String("feedUrl", feedUrl))
-	go filterItems(
+	wg.Add(1)
+	p.filterItemsAsync(
 		parsedShopItems,
 		allItems,
 		biddingItems,
+		&wg,
 	)
 
 	// Publishing shop item to the queue
@@ -115,11 +120,31 @@ func (p *FeedParser) ParseFeed(feedUrl string) {
 		)
 		return
 	}
-	p.queueWriter.WriteToQueue("shop_items", allItems, allItemsPublishErrors)
-	p.queueWriter.WriteToQueue("shop_items_bidding", biddingItems, biddingItemsPublishErrors)
+	wg.Add(2)
+	p.writeItemsToQueueAsync("shop_items", allItems, allItemsPublishErrors, &wg)
+	p.writeItemsToQueueAsync("shop_items_bidding", biddingItems, biddingItemsPublishErrors, &wg)
+
+	wg.Wait()
 }
 
-func filterItems(
+func (p *FeedParser) filterItemsAsync(
+	input chan models.ShopItem,
+	allItemsOutput chan models.ShopItem,
+	biddingItemsOutput chan models.ShopItem,
+	wg *sync.WaitGroup,
+) {
+	go func(
+		input chan models.ShopItem,
+		allItemsOutput chan models.ShopItem,
+		biddingItemsOutput chan models.ShopItem,
+		wg *sync.WaitGroup,
+	) {
+		defer wg.Done()
+		p.filterItems(input, allItemsOutput, biddingItemsOutput)
+	}(input, allItemsOutput, biddingItemsOutput, wg)
+}
+
+func (p FeedParser) filterItems(
 	input chan models.ShopItem,
 	allItemsOutput chan models.ShopItem,
 	biddingItemsOutput chan models.ShopItem,
@@ -135,5 +160,53 @@ func filterItems(
 		}
 		// Send all items to allItemsOutput
 		allItemsOutput <- item
+	}
+}
+
+func (p *FeedParser) parseFeedFileAsync(
+	feedFile io.ReadCloser,
+	parsedShopItems chan models.ShopItem,
+	parseErrors chan error,
+	wg *sync.WaitGroup,
+) {
+	go func(
+		fileParser fileparser.FeedFileParserInterface,
+		feedFile io.ReadCloser,
+		parsedShopItems chan models.ShopItem,
+		parseErrors chan error,
+		wg *sync.WaitGroup,
+	) {
+		defer wg.Done()
+		fileParser.ParseFile(feedFile, parsedShopItems, parseErrors)
+	}(p.fileParser, feedFile, parsedShopItems, parseErrors, wg)
+}
+
+func (p *FeedParser) writeItemsToQueueAsync(
+	queueName string,
+	shopItemsInput chan models.ShopItem,
+	writingErrorsInput chan error,
+	wg *sync.WaitGroup,
+) {
+	go func(
+		queueWriter queuewriter.QueueWriterInterface,
+		queueName string,
+		shopItemsInput chan models.ShopItem,
+		writingErrorsInput chan error,
+		wg *sync.WaitGroup,
+	) {
+		defer wg.Done()
+		queueWriter.WriteToQueue(queueName, shopItemsInput, writingErrorsInput)
+	}(p.queueWriter, queueName, shopItemsInput, writingErrorsInput, wg)
+}
+
+func logFeedLastModification(feedUrl string, lastModified string) {
+	// Check if feed has last modified value
+	if len(lastModified) == 0 {
+		zap.L().Warn(`Feed file has no "Last-Modified" header`, zap.String("feedUrl", feedUrl))
+	} else {
+		zap.L().Info(
+			fmt.Sprintf(`Feed file %s last modification: %s`, feedUrl, lastModified),
+			zap.String("feedUrl", feedUrl),
+		)
 	}
 }
