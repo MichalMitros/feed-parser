@@ -10,7 +10,6 @@ import (
 	"github.com/MichalMitros/feed-parser/filefetcher/httpfilefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser/xmlparser"
 	"github.com/MichalMitros/feed-parser/queuewriter/rabbitwriter"
-	"github.com/NeowayLabs/wabbit/amqp"
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
@@ -31,7 +30,6 @@ func init() {
 			Username: getEnvVarOrPanic("RABBITMQ_USER"),
 			Password: getEnvVarOrPanic("RABBITMQ_PASSWORD"),
 		},
-		amqp.Dial,
 	)
 	if err != nil {
 		zap.L().Panic(

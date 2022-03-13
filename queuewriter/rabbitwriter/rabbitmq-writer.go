@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 
 	"github.com/MichalMitros/feed-parser/models"
-	"github.com/NeowayLabs/wabbit"
-	"github.com/NeowayLabs/wabbit/amqp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/streadway/amqp"
 )
 
 // Writer for RabbitMQ queues
@@ -15,7 +14,7 @@ type RabbitWriter struct {
 	username   string
 	password   string
 	hostname   string
-	connection *amqp.Conn
+	connection *amqp.Connection
 }
 
 // Connection options for RabibitMQ writer
@@ -28,25 +27,20 @@ type RabbitWriterOptions struct {
 // Creates new RabbitWriter instance
 func NewRabbitWriter(
 	options RabbitWriterOptions,
-	dialFunc func(uri string) (*amqp.Conn, error),
 ) (*RabbitWriter, error) {
-	// Create connection
-	connString :=
-		"amqp://" +
-			options.Username + ":" +
-			options.Password + "@" +
-			options.Hostname + "/"
-	conn, err := dialFunc(connString)
+	writer := RabbitWriter{
+		username: options.Username,
+		password: options.Password,
+		hostname: options.Hostname,
+	}
+
+	// Connect
+	err := writer.connect()
 	if err != nil {
 		return nil, err
 	}
 
-	return &RabbitWriter{
-		username:   options.Username,
-		password:   options.Password,
-		hostname:   options.Hostname,
-		connection: conn,
-	}, nil
+	return &writer, nil
 }
 
 // Creates new connection channel and starts
@@ -56,40 +50,89 @@ func (r RabbitWriter) WriteToQueue(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
 ) error {
-	var err error
-	// Get channel from connection
-	ch, err := r.connection.Channel()
-	if err != nil {
-		return err
-	}
-
 	// Declare RabbitMQ queue
-	q, err := ch.QueueDeclare(
-		queueName,
-		wabbit.Option{},
-	)
+	ch, q, err := r.getQueueAndChannel(queueName)
 	if err != nil {
 		return err
 	}
 
 	for item := range shopItemsInput {
 		body, _ := json.Marshal(item)
-		err := (ch).Publish(
+		err = ch.Publish(
 			"",
-			q.Name(),
-			body,
-			wabbit.Option{},
-		)
-		// Increment prometheus counter
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        body,
+			})
+		// Handle connection error
 		if err != nil {
 			publishedShopItemsFailures.Inc()
+			ch, q, err = r.getQueueAndChannel(queueName)
+			if err != nil {
+				return err
+			}
 			return err
 		} else {
 			publishedShopItems.Inc()
 		}
 	}
 
-	return err
+	return nil
+}
+
+func (r *RabbitWriter) getQueueAndChannel(queueName string) (*amqp.Channel, *amqp.Queue, error) {
+	ch, err := r.getChannel()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Declare RabbitMQ queue
+	q, err := ch.QueueDeclare(
+		queueName,
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ch, &q, err
+}
+
+func (r *RabbitWriter) getChannel() (*amqp.Channel, error) {
+	ch, err := r.connection.Channel()
+	if err != nil {
+		err := r.connect()
+		if err != nil {
+			return nil, err
+		}
+		ch, err = r.connection.Channel()
+	}
+
+	return ch, err
+}
+
+func (r *RabbitWriter) connect() error {
+	// Create connection
+	connString :=
+		"amqp://" +
+			r.username + ":" +
+			r.password + "@" +
+			r.hostname + "/"
+	conn, err := amqp.Dial(connString)
+	if err != nil {
+		return err
+	}
+
+	r.connection = conn
+
+	return nil
 }
 
 // Prometheus published shop items
