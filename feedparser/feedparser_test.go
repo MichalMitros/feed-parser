@@ -26,7 +26,7 @@ func TestFeedParserFunctionsCalling(t *testing.T) {
 	testUrls := []string{"test_url_1", "test_url_2"}
 
 	// Use ParseFeed function
-	mockedFeedParser.ParseFeeds(testUrls)
+	mockedFeedParser.ParseFeedFiles(testUrls)
 
 	// Check if all parser's building blocks has been called
 	if mockedFetcher.NumOfFuncCalls != len(testUrls) {
@@ -77,7 +77,7 @@ func TestFeedParserResults(t *testing.T) {
 	}
 
 	// Use ParseFeed function
-	mockedFeedParser.ParseFeeds(testUrls)
+	results := mockedFeedParser.ParseFeedFiles(testUrls)
 
 	// Check if mockedQueueWriter has proper queues
 	isBiddingItemsQueueCreated := false
@@ -119,6 +119,17 @@ func TestFeedParserResults(t *testing.T) {
 			biddingItemsResult,
 			expectedBiddingItems,
 		)
+	}
+
+	for _, result := range results {
+		if result.Status != models.ParsedSuccessfully {
+			t.Fatalf(
+				"FeedParser.ParseFeedsAsync(testUrls), result[%s] = %v, wanted %v",
+				result.FeedUrl,
+				result.Status,
+				models.ParsedSuccessfully,
+			)
+		}
 	}
 }
 
