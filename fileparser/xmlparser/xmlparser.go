@@ -35,10 +35,7 @@ func (p *XmlFeedParser) ParseFile(
 
 	for {
 		// Get next xml token
-		t, err := decoder.Token()
-		if err != nil && err != io.EOF {
-			errorsOutput <- err
-		}
+		t, _ := decoder.Token()
 		// Break when file is fully processed
 		if t == nil {
 			break
@@ -49,9 +46,10 @@ func (p *XmlFeedParser) ParseFile(
 			if se.Name.Local == "SHOPITEM" {
 				// Parse single ShopItem and send results to output channel
 				var item models.ShopItem
-				err = decoder.DecodeElement(&item, &se)
+				err := decoder.DecodeElement(&item, &se)
 				if err != nil && err != io.EOF {
 					errorsOutput <- err
+					continue
 				}
 				shopItemsOutput <- item
 				// Increment prometheus parsed items counter

@@ -69,12 +69,12 @@ func TestXmlFeedParserFailure(t *testing.T) {
 		results = append(results, item)
 	}
 
-	// Check if there is one partially parsed item
-	if len(results) != 1 {
+	// Check if there are no partially parsed items
+	if len(results) != 0 {
 		t.Fatalf(
 			`xmlparser.ParseFile(mockedCorrectShop, output, erorsOutput), number of results = %d, want %d`,
 			len(results),
-			1,
+			0,
 		)
 	}
 
@@ -83,10 +83,10 @@ func TestXmlFeedParserFailure(t *testing.T) {
 	for e := range errorsOutput {
 		resultErrors = append(resultErrors, e)
 	}
-	if len(resultErrors) > 0 {
+	if len(resultErrors) != 1 {
 		t.Fatalf(
-			`xmlparser.ParseFile(mockedCorrectShop, output, erorsOutput), number of results = %d, want %d`,
-			len(results),
+			`xmlparser.ParseFile(mockedCorrectShop, output, erorsOutput), number of errors = %d, want %d`,
+			len(resultErrors),
 			1,
 		)
 	}
