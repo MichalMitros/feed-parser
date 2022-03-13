@@ -63,7 +63,10 @@ func (p *FeedParser) ParseFeed(feedUrl string) {
 	if len(lastModified) == 0 {
 		zap.L().Warn(`Feed file has no "Last-Modified" header`, zap.String("feedUrl", feedUrl))
 	} else {
-		zap.L().Info(`Feed file %s last modification`, zap.String("feedUrl", feedUrl))
+		zap.L().Info(
+			fmt.Sprintf(`Feed file %s last modification: %s`, feedUrl, lastModified),
+			zap.String("feedUrl", feedUrl),
+		)
 	}
 
 	// Parse xml to object
