@@ -9,6 +9,7 @@ const (
 )
 
 type FeedParsingResult struct {
-	FeedUrl string       `json:"feedUrl"`
-	Status  ResultStatus `json:"status"`
+	FeedUrl     string       `json:"feedUrl"`
+	Status      ResultStatus `json:"status"`
+	ParsingTime string       `json:"parsingTime"`
 }

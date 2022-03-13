@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/MichalMitros/feed-parser/filefetcher"
 	"github.com/MichalMitros/feed-parser/fileparser"
@@ -47,9 +48,12 @@ func (p *FeedParser) ParseFeedFiles(feedUrls []string) []models.FeedParsingResul
 				FeedUrl: url,
 				Status:  models.ParsingErrors,
 			}
-			err := p.ParseFeed(url)
+			processingTime, err := p.ParseFeed(url)
 			if err == nil {
 				parsingResult.Status = models.ParsedSuccessfully
+				if processingTime != nil {
+					parsingResult.ParsingTime = processingTime.String()
+				}
 			}
 			parsingStatuses = append(parsingStatuses, parsingResult)
 		}(url, parsingStatuses, &wg)
@@ -61,9 +65,12 @@ func (p *FeedParser) ParseFeedFiles(feedUrls []string) []models.FeedParsingResul
 // Parse single feed file from feedUrl
 // and send filtered results to queueWriter
 // Save for concurrent
-func (p *FeedParser) ParseFeed(feedUrl string) error {
+func (p *FeedParser) ParseFeed(
+	feedUrl string,
+) (processingTime *time.Duration, err error) {
 	defer zap.L().Sync()
 
+	start := time.Now()
 	g := new(errgroup.Group)
 
 	zap.L().Info(
@@ -79,7 +86,7 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 			zap.String("feedUrl", feedUrl),
 			zap.Error(err),
 		)
-		return err
+		return nil, err
 	}
 	// Check if feed has last modified value
 	logFeedLastModification(feedUrl, lastModified)
@@ -93,7 +100,7 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 			zap.String("feedUrl", feedUrl),
 			zap.Error(err),
 		)
-		return err
+		return nil, err
 	}
 	p.parseFeedFileAsync(feedFile, parsedShopItems, g)
 
@@ -122,15 +129,18 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 			zap.String("feedUrl", feedUrl),
 			zap.Error(err),
 		)
-		return err
+		return nil, err
 	}
 
+	elapsed := time.Since(start)
+	processingTime = &elapsed
 	zap.L().Info(
 		fmt.Sprintf("Successfully finished parsing feed from %s", feedUrl),
 		zap.String("feedUrl", feedUrl),
+		zap.String("processingTime", elapsed.String()),
 	)
 
-	return nil
+	return processingTime, nil
 }
 
 // Run routine for shop items filtering
