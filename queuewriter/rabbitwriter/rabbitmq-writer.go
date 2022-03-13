@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 
 	"github.com/MichalMitros/feed-parser/models"
+	"github.com/NeowayLabs/wabbit"
+	"github.com/NeowayLabs/wabbit/amqp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/streadway/amqp"
 )
 
 // Writer for RabbitMQ queues
@@ -14,7 +15,7 @@ type RabbitWriter struct {
 	username   string
 	password   string
 	hostname   string
-	connection *amqp.Connection
+	connection *amqp.Conn
 }
 
 // Connection options for RabibitMQ writer
@@ -65,11 +66,7 @@ func (r RabbitWriter) WriteToQueue(
 	// Declare RabbitMQ queue
 	q, err := ch.QueueDeclare(
 		queueName,
-		false,
-		false,
-		false,
-		false,
-		nil,
+		wabbit.Option{},
 	)
 	if err != nil {
 		return err
@@ -78,7 +75,7 @@ func (r RabbitWriter) WriteToQueue(
 	// Start new go routine sending items
 	// from shopItemsInput channel to the queue
 	go r.rabbitWritingRoutine(
-		ch,
+		&ch,
 		&q,
 		shopItemsInput,
 		errorsOutput,
@@ -90,23 +87,19 @@ func (r RabbitWriter) WriteToQueue(
 // Writes objects from shopItemsInput
 // to the queue in JSON format
 func (r *RabbitWriter) rabbitWritingRoutine(
-	channel *amqp.Channel,
-	queue *amqp.Queue,
+	channel *wabbit.Channel,
+	queue *wabbit.Queue,
 	shopItemsInput chan models.ShopItem,
 	errorsOutput chan error,
 ) {
 	defer close(errorsOutput)
 	for item := range shopItemsInput {
 		body, _ := json.Marshal(item)
-		err := channel.Publish(
+		err := (*channel).Publish(
 			"",
-			queue.Name,
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        body,
-			},
+			(*queue).Name(),
+			body,
+			wabbit.Option{},
 		)
 		// Increment prometheus counter
 		if err != nil {
