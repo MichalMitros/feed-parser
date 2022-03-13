@@ -58,11 +58,10 @@ func TestXmlFeedParserFailure(t *testing.T) {
 	)
 	mockedReadCloser := io.NopCloser(strings.NewReader(xmlFileString))
 	output := make(chan models.ShopItem, len(mockedCorrectShop.ShopItems))
-	errorsOutput := make(chan error, 10)
 
 	// Parse data
 	parser := NewXmlFeedParser()
-	parser.ParseFile(&mockedReadCloser, output)
+	err := parser.ParseFile(&mockedReadCloser, output)
 	var results []models.ShopItem
 	for item := range output {
 		results = append(results, item)
@@ -77,16 +76,10 @@ func TestXmlFeedParserFailure(t *testing.T) {
 		)
 	}
 
-	// Check if there are any errors in errorsOutput channel
-	resultErrors := []error{}
-	for e := range errorsOutput {
-		resultErrors = append(resultErrors, e)
-	}
-	if len(resultErrors) != 1 {
+	// Check if there is error returned
+	if err == nil {
 		t.Fatalf(
-			`xmlparser.ParseFile(mockedCorrectShop, output, erorsOutput), number of errors = %d, want %d`,
-			len(resultErrors),
-			1,
+			`xmlparser.ParseFile(mockedIncorrectShop, output), expected error, got nil`,
 		)
 	}
 }
