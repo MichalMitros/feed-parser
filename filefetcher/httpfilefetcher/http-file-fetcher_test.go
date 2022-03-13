@@ -24,9 +24,9 @@ func TestFetchFile(t *testing.T) {
 	}
 
 	// Check if returned io.ReadCloser isn't changed
-	if !reflect.DeepEqual(mockedReadCloser, result) {
+	if !reflect.DeepEqual(mockedReadCloser, *result) {
 		t.Fatalf(
-			"FetchFiles(string), should return unchanged io.ReadCloser",
+			"HttpFileFetcher.FetchFiles(string), should return unchanged io.ReadCloser",
 		)
 	}
 }
