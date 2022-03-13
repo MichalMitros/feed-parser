@@ -34,7 +34,7 @@ func init() {
 		amqp.Dial,
 	)
 	if err != nil {
-		zap.L().Fatal(
+		zap.L().Panic(
 			"Cannot establish connection to RabbitMQ",
 			zap.Error(err),
 		)
@@ -61,7 +61,7 @@ func PostParseFeedAsync(c *gin.Context) {
 	}
 
 	// Parse all feeds from the request
-	feedParser.ParseFeedsAsync(request.FeedUrls)
+	go feedParser.ParseFeedFiles(request.FeedUrls)
 
 	// Send response
 	c.IndentedJSON(http.StatusAccepted, gin.H{
@@ -84,7 +84,7 @@ func PostParseFeed(c *gin.Context) {
 	}
 
 	// Parse all feeds from the request
-	statuses := feedParser.ParseFeeds(request.FeedUrls)
+	statuses := feedParser.ParseFeedFiles(request.FeedUrls)
 
 	// Send response
 	c.IndentedJSON(http.StatusOK, contracts.ParseFeedResponse{

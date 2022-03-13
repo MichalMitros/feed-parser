@@ -34,7 +34,9 @@ func NewFeedParser(
 
 // Parse many feed files concurently and wait for parsing results.
 // Returns array of parsing results for each url.
-func (p *FeedParser) ParseFeeds(feedUrls []string) []models.FeedParsingResult {
+// Save for concurrent use.
+// For large feed files in feedUrls should be called as separate routine.
+func (p *FeedParser) ParseFeedFiles(feedUrls []string) []models.FeedParsingResult {
 	var wg sync.WaitGroup
 	parsingStatuses := []models.FeedParsingResult{}
 	for _, url := range feedUrls {
@@ -54,16 +56,6 @@ func (p *FeedParser) ParseFeeds(feedUrls []string) []models.FeedParsingResult {
 	}
 	wg.Wait()
 	return parsingStatuses
-}
-
-// Parse many feed files concurently without waiting for them to finish
-// Useful for parsing large feed files
-func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
-	for _, url := range feedUrls {
-		go func(url string) {
-			p.ParseFeed(url)
-		}(url)
-	}
 }
 
 // Parse single feed file from feedUrl
