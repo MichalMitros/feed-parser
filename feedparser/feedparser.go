@@ -32,6 +32,8 @@ func NewFeedParser(
 	}
 }
 
+// Parse many feed files concurently and wait for parsing results.
+// Returns array of parsing results for each url.
 func (p *FeedParser) ParseFeeds(feedUrls []string) []models.FeedParsingResult {
 	var wg sync.WaitGroup
 	parsingStatuses := []models.FeedParsingResult{}
@@ -54,6 +56,8 @@ func (p *FeedParser) ParseFeeds(feedUrls []string) []models.FeedParsingResult {
 	return parsingStatuses
 }
 
+// Parse many feed files concurently without waiting for them to finish
+// Useful for parsing large feed files
 func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
 	for _, url := range feedUrls {
 		go func(url string) {
@@ -62,6 +66,9 @@ func (p *FeedParser) ParseFeedsAsync(feedUrls []string) {
 	}
 }
 
+// Parse single feed file from feedUrl
+// and send filtered results to queueWriter
+// Save for concurrent
 func (p *FeedParser) ParseFeed(feedUrl string) error {
 	defer zap.L().Sync()
 
@@ -134,6 +141,7 @@ func (p *FeedParser) ParseFeed(feedUrl string) error {
 	return nil
 }
 
+// Run routine for shop items filtering
 func (p *FeedParser) filterItemsAsync(
 	input chan models.ShopItem,
 	allItemsOutput chan models.ShopItem,
@@ -148,6 +156,9 @@ func (p *FeedParser) filterItemsAsync(
 	)
 }
 
+// Filter shop items from input and send:
+// - all items to allItemsOutput
+// - items with bidding set to biddingItemsOutput
 func (p FeedParser) filterItems(
 	input chan models.ShopItem,
 	allItemsOutput chan models.ShopItem,
@@ -167,6 +178,8 @@ func (p FeedParser) filterItems(
 	}
 }
 
+// Run routine parsing feed file from feedFile *io.ReadCloser
+// and send parsed items to parsedShopItems output channel
 func (p *FeedParser) parseFeedFileAsync(
 	feedFile *io.ReadCloser,
 	parsedShopItems chan models.ShopItem,
@@ -179,6 +192,8 @@ func (p *FeedParser) parseFeedFileAsync(
 	)
 }
 
+// Run routine sending items from shopItemsInput channel
+// to queue with name queueName
 func (p *FeedParser) writeItemsToQueueAsync(
 	queueName string,
 	shopItemsInput chan models.ShopItem,
@@ -191,6 +206,8 @@ func (p *FeedParser) writeItemsToQueueAsync(
 	)
 }
 
+// Print last modification time of the feed for debug purposes
+// or log warning about missing last modification data
 func logFeedLastModification(feedUrl string, lastModified string) {
 	// Check if feed has last modified value
 	if len(lastModified) == 0 {
